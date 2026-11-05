@@ -3,7 +3,6 @@ package edu.scvtc.scholarship;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 
 /**
  * 命令行入口：演示 录入 -> 排序 -> 评定 -> 输出 的完整流程，
@@ -11,21 +10,28 @@ import java.util.List;
  */
 public class Main {
 
+    private static final int W_NO = 6;        // 学号
+    private static final int W_NAME = 10;     // 姓名
+    private static final int W_SCORES = 26;   // 五门成绩
+    private static final int W_CONDUCT = 8;   // 操行
+    private static final int W_TOTAL = 8;     // 总分
+    private static final int W_LEVEL = 8;     // 奖学金
+
     public static void main(String[] args) throws Exception {
         StudentService service = demoService();
         ScholarshipRule[] rules = ScholarshipRule.defaultRules();
 
         StringBuilder sb = new StringBuilder();
         sb.append("待评定学生（录入顺序）\n");
-        sb.append(header());
+        sb.append(tableHeader());
         for (Student s : service.all()) {
-            sb.append(row(s));
+            sb.append(tableRow(s, false));
         }
 
         sb.append("\n按总分降序排序（总分相同按学号升序）\n");
-        sb.append(header());
+        sb.append(tableHeader());
         for (Student s : service.sortByTotalDesc()) {
-            sb.append(row(s));
+            sb.append(tableRow(s, false));
         }
 
         int[] counts = service.evaluateScholarship(rules);
@@ -33,15 +39,17 @@ public class Main {
         for (int i = 0; i < rules.length; i++) {
             sb.append(rules[i].toString()).append("，共 ").append(counts[i]).append(" 人\n");
         }
-        for (int level = 1; level <= rules.length; level++) {
-            List<Student> list = service.byLevel(level);
-            if (list.isEmpty()) {
-                sb.append("  ").append(level).append(" 等：无\n");
-                continue;
+        sb.append("\n");
+        sb.append(tableHeader());
+        boolean any = false;
+        for (Student s : service.sortByTotalDesc()) {
+            if (s.getScholarshipLevel() > 0) {
+                sb.append(tableRow(s, true));
+                any = true;
             }
-            for (Student s : list) {
-                sb.append("  ").append(s.toString()).append("\n");
-            }
+        }
+        if (!any) {
+            sb.append("  本次无学生获得奖学金\n");
         }
 
         sb.append("\n统计\n");
@@ -56,12 +64,73 @@ public class Main {
         System.out.println("结果已写入 report.txt (" + StandardCharsets.UTF_8.name() + ")");
     }
 
-    private static String header() {
-        return "学号\t姓名\t成绩\t\t\t操行\t总分\t奖学金\n";
+    private static String tableHeader() {
+        String head = pad("学号", W_NO) + pad("姓名", W_NAME) + pad("成绩", W_SCORES)
+                + pad("操行", W_CONDUCT) + pad("总分", W_TOTAL) + pad("奖学金", W_LEVEL);
+        String line = repeat('-', W_NO) + "  " + repeat('-', W_NAME) + "  " + repeat('-', W_SCORES)
+                + "  " + repeat('-', W_CONDUCT) + "  " + repeat('-', W_TOTAL) + "  " + repeat('-', W_LEVEL);
+        return "  " + head + "\n  " + line + "\n";
     }
 
-    private static String row(Student s) {
-        return s.toString() + "\n";
+    /** withLevel 为 true 时最后一列显示实际等级，否则显示"无"。 */
+    private static String tableRow(Student s, boolean withLevel) {
+        String level = withLevel
+                ? (s.getScholarshipLevel() == 0 ? "无" : s.getScholarshipLevel() + " 等")
+                : "无";
+        return "  " + pad(s.getStudentNo(), W_NO)
+                + pad(s.getName(), W_NAME)
+                + pad(joinScores(s.getScores()), W_SCORES)
+                + pad(String.valueOf(s.getConductScore()), W_CONDUCT)
+                + pad(String.valueOf(s.getTotalScore()), W_TOTAL)
+                + pad(level, W_LEVEL)
+                + "\n";
+    }
+
+    private static String joinScores(int[] scores) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < scores.length; i++) {
+            if (i > 0) {
+                sb.append(' ');
+            }
+            sb.append(scores[i]);
+        }
+        return sb.toString();
+    }
+
+    /** 按显示宽度左对齐填充，并在列后补两格间隔。 */
+    private static String pad(String text, int width) {
+        StringBuilder sb = new StringBuilder(text);
+        for (int i = displayWidth(text); i < width; i++) {
+            sb.append(' ');
+        }
+        return sb.append("  ").toString();
+    }
+
+    /** 计算显示宽度：汉字等全角字符占 2 列。 */
+    private static int displayWidth(String text) {
+        int width = 0;
+        for (int i = 0; i < text.length(); i++) {
+            width += isFullWidth(text.charAt(i)) ? 2 : 1;
+        }
+        return width;
+    }
+
+    private static boolean isFullWidth(char c) {
+        return (c >= 0x1100 && c <= 0x115F)
+                || (c >= 0x2E80 && c <= 0xA4CF)
+                || (c >= 0xAC00 && c <= 0xD7A3)
+                || (c >= 0xF900 && c <= 0xFAFF)
+                || (c >= 0xFE30 && c <= 0xFE6F)
+                || (c >= 0xFF00 && c <= 0xFF60)
+                || (c >= 0xFFE0 && c <= 0xFFE6);
+    }
+
+    private static String repeat(char c, int count) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < count; i++) {
+            sb.append(c);
+        }
+        return sb.toString();
     }
 
     private static StudentService demoService() {
