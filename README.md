@@ -97,3 +97,36 @@ java -cp out edu.scvtc.scholarship.Main
 （示例数据里 01 号总分 478 却评二等，06 号总分 472 评一等）。
 这是规则本身的结果，不是 bug。如果学校更看重总分，应改 `ScholarshipRule`
 的 `minSubjectScore` 或改成「按总分排名」方案——规则外置就是为了这种调整。
+
+---
+
+## 测试输出
+
+本地实测（OpenJDK 17，Windows；`build.bat` 编译到 `out\` 后跑 `run-tests.bat`）：
+
+```
+$ run-tests.bat
+PASS  total score = sum of subjects
+PASS  average score
+PASS  min subject picked
+PASS  all passed when min >= 60
+PASS  one subject below 60 -> not all passed
+PASS  sort: highest total first
+PASS  sort: tie broken by studentNo asc
+PASS  level1 count = 2
+PASS  level2 count = 1
+PASS  level3 count = 0
+PASS  conduct below threshold gets nothing
+PASS  subject below threshold gets nothing
+PASS  one student evaluated only once
+PASS  re-evaluate resets previous level
+PASS  empty: average = 0
+PASS  empty: pass rate = 0
+PASS  empty: sort returns empty list
+PASS  reject score > 100
+PASS  reject score < 0
+PASS  reject blank studentNo
+PASS  reject null scores
+
+21 passed / 0 failed
+```
